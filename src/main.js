@@ -6,6 +6,10 @@ import router from './router'
 import PrimeVue from 'primevue/config';
 import Aura from '@primevue/themes/aura';
 import { definePreset } from '@primevue/themes';
+// Mengakses variabel dari file .env
+const API_URL = import.meta.env.VITE_API_URL; // Ini harus sesuai dengan nama variabel di .env
+const API_TOKEN = import.meta.env.VITE_API_TOKEN;
+
 
 
 const MyPreset = definePreset(Aura, {
@@ -57,6 +61,11 @@ const MyPreset = definePreset(Aura, {
 });
 
 const app = createApp(App)
+.provide('API_URL', API_URL)
+.provide('API_TOKEN', API_TOKEN)
+
+
+
 app.use(PrimeVue, {
     theme: {
         preset: MyPreset,
@@ -67,6 +76,7 @@ app.use(PrimeVue, {
 });
 
 app.use(PrimeVue);
+
 app.use(router);
 
 app.mount('#app')
