@@ -32,24 +32,35 @@ const getData = async () => {
         const resultJson = await res.json();
         initialValues = resultJson.data;
 
+
         datalevel = initialValues
             .map(item => {
                 // console.log('tes',item)
                 const jabatan = item.m_kary_det_jabatan?.[0]?.jabatan ?? null;
                 const level = item.m_kary_det_jabatan?.[0]?.level ?? null;
                 const nama_sbu = item.m_kary_det_jabatan?.[0]?.nama_sbu ?? null;
+                const m_comp_id = item.m_kary_det_jabatan?.[0]?.m_comp_id ?? null;
+                const m_divisi_id = item.m_kary_det_jabatan?.[0]?.m_divisi_id ?? null;
+                const m_branch_id = item.m_kary_det_jabatan?.[0]?.m_branch_id ?? null;
+                const m_subcomp_id = item.m_kary_det_jabatan?.[0]?.m_subcomp_id ?? null;
+
                 if (jabatan !== null || level !== null) {
                     return {
                         level: level,
                         nama_lengkap: item.nama_lengkap,
                         jabatan: jabatan,
-                        nama_sbu: nama_sbu
+                        nama_sbu: nama_sbu,
+                        m_comp_id: m_comp_id,
+                        m_divisi_id: m_divisi_id,
+                        m_branch_id: m_branch_id,
+                        m_subcomp_id: m_subcomp_id
                     };
                 }
-                return null;  
+
+                return null;
             })
-            .filter(item => item !== null);  
-        
+            .filter(item => item !== null);
+
         console.log('Data Level', datalevel);
 
     } catch (error) {
@@ -59,7 +70,16 @@ const getData = async () => {
     }
 };
 
-const pohon = ref({});
+const pohon = ref({
+    label1: 'PT.TEMPRINA',
+    label2: 'STRUKTRU ORGANISASI',
+    level: 0,
+    m_comp_id: 0,
+    m_divisi_id: 0,
+    m_branch_id: 0,
+    m_subcomp_id: 0,
+    children: []
+});
 
 const covert_data = () => {
     const levelMap = {};
@@ -70,31 +90,51 @@ const covert_data = () => {
         levelMap[item.level].push(item);
     });
 
-    const processLevel = (level) => {
+    const processLevel = (level, parent = null) => {
         if (!levelMap[level]) return [];
 
         return levelMap[level].map(item => {
+            // Check if item should be added as a child of the parent
+            const isValidChild = parent 
+                ? (
+                    (parent.m_comp_id === null || item.m_comp_id === parent.m_comp_id) &&
+                    (parent.m_divisi_id === null || item.m_divisi_id === parent.m_divisi_id) &&
+                    (parent.m_branch_id === null || item.m_branch_id === parent.m_branch_id) &&
+                    (parent.m_subcomp_id === null || item.m_subcomp_id === parent.m_subcomp_id)
+                )
+                : true;
+
+            if (!isValidChild) {
+                return null; // Skip adding this item as a child
+            }
+
             const obj = {
                 level: item.level,
-                nama_lengkap: item.nama_lengkap, 
+                nama_lengkap: item.nama_lengkap,
                 jabatan: item.jabatan,
-                nama_sbu : item.nama_sbu,
-                children: processLevel(level + 1) 
+                nama_sbu: item.nama_sbu,
+                m_comp_id: item.m_comp_id ?? null,
+                m_divisi_id: item.m_divisi_id ?? null,
+                m_branch_id: item.m_branch_id ?? null,
+                m_subcomp_id: item.m_subcomp_id ?? null,
+                children: processLevel(level + 1, item) // Pass current item as parent
             };
 
+            // Only add children if they exist
             if (obj.children.length === 0) {
                 delete obj.children;
             }
+
             return obj;
-        });
+        }).filter(item => item !== null); // Filter out invalid children
     };
 
-    const minLevel = Math.min(...datalevel.map(item => item.level));
-    const structure = processLevel(minLevel);
-    const finalStructure = structure.length === 1 ? structure[0] : structure;
-    console.log('halo',finalStructure)
-    console.log('finalResult', finalStructure);
-    pohon.value = finalStructure; 
+    const structure = processLevel(0);
+    if (structure.length > 0) {
+        pohon.value.children = structure;
+    }
+
+    console.log('Final Structure', pohon.value);
 };
 
 onMounted(() => {
@@ -104,22 +144,24 @@ onMounted(() => {
 </script>
 
 <template>
-
-
     <div class="h-screen flex flex-col justify-center items-center bg-gray-500">
         <button @click="covert_data" class="font-semibold p-4 mb-10 bg-red-500 rounded-xl shadow-xl">
             UBAH DATA
         </button>
 
-        <OrganizationChart :value="pohon" >
+        <OrganizationChart :value="pohon">
             <template #default="slotProps">
                 <span class="text-xl font-bold">{{ slotProps.node.nama_lengkap }}</span>
+                <span class="text-xl font-bold">{{ slotProps.node.label1 }}</span>
                 <br>
+                <span>{{ slotProps.node.label2 }}</span>
                 <span>{{ slotProps.node.jabatan }}</span>
                 <br>
                 <span>{{ slotProps.node.nama_sbu }}</span>
+                <br>
+                <span>LEVEL {{ slotProps.node.level }}</span>
             </template>
-</OrganizationChart>
+        </OrganizationChart>
 
     </div>
 
